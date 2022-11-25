@@ -23,21 +23,40 @@ import os
 
 my_output_dir = '/Volumes/workdrive_m.wehrens_hubrecht/microscopy_images/python_analysis/out/'
 
-my_image_dir = '/Volumes/workdrive_m.wehrens_hubrecht/microscopy_images/pictures/'
-my_image = 'pilot-4nov_b1_pos1_movie_t0000.tif'
-my_image_base = 'pilot-4nov_b1_pos1_movie_t'
-my_image_path = my_image_dir+my_image
+###############################################################################
 
-img = mpimg.imread(my_image_dir+my_image)
+# Get a list of available python datasets in a directory
 
-imgplot = plt.imshow(img)
-plt.show()
+dataset_dir='/Users/m.wehrens/Documents/git_repos/cardio_img_analysis/projects/2022_11_pilot1/'
+dataset_files=os.listdir(dataset_dir)
 
-112, 912
-640, 1504
+execfile(dataset_dir+dataset_files[0])
 
-imgplot = plt.imshow(img[912:1504, 111:640])
-plt.show()
+###############################################################################
+
+# Load a specific dataset
+
+exec(open(dataset_dir+dataset_files[0]).read())
+
+
+###############################################################################
+# Initial testing
+
+#my_image_dir = '/Volumes/workdrive_m.wehrens_hubrecht/microscopy_images/pictures/'
+#my_image = 'pilot-4nov_b1_pos1_movie_t0000.tif'
+#my_image_base = 'pilot-4nov_b1_pos1_movie_t'
+#my_image_path = my_image_dir+my_image
+
+#img = mpimg.imread(my_image_dir+my_image)
+
+#imgplot = plt.imshow(img)
+#plt.show()
+
+#112, 912
+#640, 1504
+
+#imgplot = plt.imshow(img[912:1504, 111:640])
+#plt.show()
 
 ###############################################################################
 

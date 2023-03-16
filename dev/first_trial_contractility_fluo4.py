@@ -626,7 +626,7 @@ for DATA_IDX in range(0,len(my_samples)):
     # identify negative peaks (ie start of peak)
     # peaks_in_mytrace_inv, _ = signal.find_peaks(-current_trace_normalized, distance=peak_est_distances_list[my_samples[DATA_IDX]]*.6)
     
-    # for the inverse, perform slight filter
+    # for the inverse, perform slight filter (smoothign)
     current_trace_normalized_sav = signal.savgol_filter(current_trace_normalized, window_length, 3)
     peaks_in_mytrace_inv, _ = signal.find_peaks(-current_trace_normalized_sav, distance=peak_est_distances_list[my_samples[DATA_IDX]]*.6)
     

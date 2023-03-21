@@ -296,6 +296,7 @@ for S_IDX in range(len(my_samples)):
     
     REF_IMG = sample_refimg[my_samples[S_IDX]]
     NR_FRAMES = 500
+    roi = sample_roi[my_samples[S_IDX]] # BUGFIX -- untested code!
     
     # Example of correlation calculation
     # thecorr, p = stats.pearsonr([1,2,3],[1,2,2])

@@ -40,8 +40,16 @@ if not (os.path.isdir(my_out_dir)):
     os.mkdir(my_out_dir)
 
 ###############################################################################
+
+# Import custom functions
+import sys
+sys.path.append("/Users/m.wehrens/Documents/git_repos/cardio_img_analysis/functions/")
+from custom_functions_contractility import *
+
+###############################################################################
 # Custom functions
 
+"""
 # Autocorrelation function
 def acf(x, length=1500):
     return np.array([1]+[np.corrcoef(x[:-i], x[i:])[0,1]  \
@@ -52,6 +60,7 @@ def acf(x, length=1500):
 def location_closest_value(x, val):
     dx = np.abs(np.array(x)-np.array(val))
     return( [i for i in range(len(dx)) if dx[i] == np.min(dx)] )
+"""
 
 ###############################################################################
 # Show an initial image for testing

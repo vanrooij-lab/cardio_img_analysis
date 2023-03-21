@@ -33,6 +33,8 @@ import cv2 # installed using terminal and pip; "pip install opencv-python"
 
 from datetime import datetime # only for convenience purposes
 
+import re
+
 font = {'family' : 'normal',
         'weight' : 'bold',
         'size'   : 8}
@@ -129,6 +131,7 @@ plt.show()
 # ROIs such that they are consistent between those positions.
 #SELECTED_SAMPLES = ['2023-03-15-MW-PC-epi-titrate_B3-p1-nt','2023-03-15-MW-PC-epi-titrate_B4-p1-nt-r2','2023-03-15-MW-PC-epi-titrate_B5-p1-nt-r2']
 SELECTED_SAMPLES = ['2023-03-15-MW-PC-epi-titrate.lif_B2-p1-nt-r2', '2023-03-15-MW-PC-epi-titrate.lif_B2-p2-nt-r2', '2023-03-15-MW-PC-epi-titrate.lif_B3-p2-nt-r2', '2023-03-15-MW-PC-epi-titrate.lif_B4-p2-nt-r2', '2023-03-15-MW-PC-epi-titrate.lif_B5-p2-nt-r2']
+SELECTED_SAMPLES = ['2023-03-15-MW-PC-epi-titrate.lif_B2-p1-nt', '2023-03-15-MW-PC-epi-titrate.lif_B2-p2-nt']
 
 #collected_ROIs = np.full([len(my_samples),4], np.nan)
 collected_ROIs = {}
@@ -188,17 +191,14 @@ for S_IDX in range(len(my_samples)):
 # REF_IMG = 85
 NR_FRAMES = 250
 
-# Reload the reference frames
-sample_info  = pd.read_excel(my_work_dir+'2023-03-15_sample_metadata.xlsx')
-sample_refimg = {sample_info['sample_name'][ii]:sample_info['ref_frame'][ii] for ii in range(len(sample_info))}
-
 for S_IDX in range(len(my_samples)):
     
-    # S_IDX=1
+    # S_IDX=23; NR_FRAMES = 700
     
-    print('Performing calculation for '+str(S_IDX)+'/'+str(len(my_samples)))
+    print('Performing calculation for '+str(S_IDX+1)+'/'+str(len(my_samples)))
     
     REF_IMG = sample_refimg[my_samples[S_IDX]]
+    roi = sample_roi[my_samples[S_IDX]]    
     
     # Example of correlation calculation
     # thecorr, p = stats.pearsonr([1,2,3],[1,2,2])
@@ -241,7 +241,12 @@ for S_IDX in range(len(my_samples)):
 # Some code to identify the index of a specific dataset
 # This code can be ignored
 if False: 
+    [i for i in range(len(my_samples)) if my_samples[i] == '2023-03-15-MW-PC-epi-titrate.lif_B2-p1-nt']
     [i for i in range(len(my_samples)) if my_samples[i] == '2023-03-15-MW-PC-epi-titrate.lif_B2-p2-nt']
+
+    [i for i in range(len(my_samples)) if my_samples[i] == '2023-03-15-MW-PC-epi-titrate.lif_B4-p1-nt']
+    [i for i in range(len(my_samples)) if my_samples[i] == '2023-03-15-MW-PC-epi-titrate.lif_B2-p2-nt-r2']
+
 
 
 ###############################################################################
@@ -360,13 +365,19 @@ fig.savefig(my_out_dir+'custom_example_contr-corr_'+my_samples[S_IDX]+'_img.pdf'
 # Same as above, but now automated over samples
 # NOTE THAT THIS TAKES LONG!
 
-NR_FRAMES = 500
+NR_FRAMES = 500 # frames 1 .. NR_FRAMES will be considered for the analysis
+    # I now did 500 but there are already 4 datasets where it's better to 
+    # take 1000 frames; probably best to repeat this analysis with the max
+    # amount of frames and just store that data. (In this case, max 'd be 2000.)
 
 list_traces_corrcontr = {}
 for S_IDX in range(len(my_samples)):
     
     # In case there are some exception-cases, this allows easy manual updating
-    # S_IDX = ; NR_FRAMES = 
+    # S_IDX = 18; NR_FRAMES = 1000 
+    # S_IDX = 23; NR_FRAMES = 1000    
+    # S_IDX = 30; NR_FRAMES = 1000
+    # S_IDX = 24; NR_FRAMES = 1000    
     
     # For convenience, give user some information
     print("Working on sample " + my_samples[S_IDX]+', '+str(S_IDX+1)+'/'+str(len(my_samples)))
@@ -400,6 +411,13 @@ for S_IDX in range(len(my_samples)):
             
     list_traces_corrcontr[my_samples[S_IDX]] = mytrace
             
+# Little bit of debugging
+# (You can ignore this code.)
+if False:
+    my_samples[S_IDX]
+    plt.imshow(img_ref[roi[0]:roi[1],roi[2]:roi[3]])
+    plt.imshow(img_XXXX[roi[0]:roi[1],roi[2]:roi[3]])
+    
 ###############################################################################
 # Now post-process these signals (creates plots to double check what's done)
 
@@ -412,11 +430,13 @@ second_peaks = {}
 list_traces_1min = {}
 list_minvals={}
 list_maxvals={}
-f=np.arange(0,NR_FRAMES)
+
 for S_IDX in range(len(my_samples)):
     
     current_trace      = list_traces_corrcontr[my_samples[S_IDX]]    
     current_trace_1min = np.array([1-val for val in current_trace])
+
+    f = np.arange(0,len(current_trace))
     
     # estimate time scale for peaks in terms of frames
     current_distance = int(round(PEAKMINTIME/sample_dt[my_samples[S_IDX]]))
@@ -459,7 +479,7 @@ for S_IDX in range(len(my_samples)):
 ###############################################################################
 # Create aligned plots, in two panels
 
-NR_FRAMES = 500
+
 XMAX = 3.5
 
 fig = plt.figure(figsize=(10/2.54,10/2.54), dpi=600) 
@@ -468,11 +488,12 @@ ax=fig.add_subplot(2, 1, 1)
 samples_scrambled1hz = [sample for sample in my_samples if '-nt' in sample]
 for sample_name in samples_scrambled1hz:
     
+    current_trace          = list_traces_1min[sample_name]
+    NR_FRAMES              = len(current_trace)    
     current_firstpeak      = first_peaks[sample_name]
     current_firstpeak_time = current_firstpeak*sample_dt[sample_name]
     current_t              = np.arange(0,NR_FRAMES)*sample_dt[sample_name]
     current_t_adj          = current_t-current_firstpeak_time
-    current_trace          = list_traces_1min[sample_name]
     current_trace_norm     = (current_trace-list_minvals[sample_name])/(list_maxvals[sample_name]-list_minvals[sample_name])
     
     plt.plot(current_t_adj, current_trace_norm,'b-')
@@ -492,11 +513,12 @@ SEARCHTERM = '0.3uM-EPI'
 samples_siDes1hz = [sample for sample in my_samples if SEARCHTERM in sample]
 for sample_name in samples_siDes1hz:
     
+    current_trace          = list_traces_1min[sample_name]
+    NR_FRAMES              = len(current_trace)       
     current_firstpeak      = first_peaks[sample_name]
     current_firstpeak_time = current_firstpeak*sample_dt[sample_name]
     current_t              = np.arange(0,NR_FRAMES)*sample_dt[sample_name]
     current_t_adj          = current_t-current_firstpeak_time
-    current_trace          = list_traces_1min[sample_name]
     current_trace_norm     = (current_trace-list_minvals[sample_name])/(list_maxvals[sample_name]-list_minvals[sample_name])
     
     plt.plot(current_t_adj, current_trace_norm,'r-')
@@ -526,11 +548,10 @@ plt.show()
 # Multiple aligned plots, in two panels, but now also calculate some 
 # parameters of interest
 
-NR_FRAMES = 500
 XMAX = 3.5
 
-SEARCHTERMS = ['-nt','0.3uM-EPI','1uM-EPI','10uM-EPI']
-mycolors    = ['b'  ,'r'        ,'r'      ,'r']
+SEARCHTERMS = ['-nt$','-nt-r2$','0.3uM-EPI','1uM-EPI','10uM-EPI']
+mycolors    = ['b'  ,'b'  ,'r'        ,'r'      ,'r']
 
 peak_durations_50 = {}
 
@@ -546,15 +567,17 @@ for idx_t in range(len(SEARCHTERMS)):
     
     ax=fig.add_subplot(len(SEARCHTERMS), 1, idx_t+1)
     
-    selected_samples = [sample for sample in my_samples if current_SEARCHTERM in sample]
+    # selected_samples = [sample for sample in my_samples if current_SEARCHTERM in sample]
+    selected_samples = [sample for sample in my_samples if re.search(current_SEARCHTERM, sample)]   
     for sample_name in selected_samples:
         
+        current_trace          = list_traces_1min[sample_name]        
+        NR_FRAMES              = len(current_trace)       
         current_firstpeak      = first_peaks[sample_name]
         current_second_peak    = second_peaks[sample_name]    
         current_firstpeak_time = current_firstpeak*sample_dt[sample_name]
         current_t              = np.arange(0,NR_FRAMES)*sample_dt[sample_name]
         current_t_adj          = current_t-current_firstpeak_time
-        current_trace          = list_traces_1min[sample_name]
         current_trace_norm     = (current_trace-list_minvals[sample_name])/(list_maxvals[sample_name]-list_minvals[sample_name])
         
         # Find the peak_duration_50
@@ -593,13 +616,24 @@ plt.xlabel('Time (s)')
 plt.ylabel('1-corr (normalized)')
 plt.tight_layout()
 
-
+plt.savefig(my_out_dir+'final_overview_traces.pdf')
 plt.show()
 
 # For now, I manually exported some of this data to Prism
+peak_durations_byterm
+interpeak_times_byterm
 
 
+plt.close('all') 
 
+# Notes
+# Striking that some numbers are precisely equal, e.g.:
+# '2023-03-15-MW-PC-epi-titrate.lif_B2-p2-nt-r2': array([0.58004867]),
+# '2023-03-15-MW-PC-epi-titrate.lif_B3-p2-nt-r2': array([0.58004867]),
+# These are even from different wells -- note however that the 
+# acquisition rate is 0.009831 s, so this simply means that 
+# the length in terms of frames is 59 frames, and it seems reasonable that
+# that value could be found exactly multiple times.
 
 
 ###############################################################################

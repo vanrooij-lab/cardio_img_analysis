@@ -157,6 +157,7 @@ mytrace=[]
 for img_idx in range(0, NR_FRAMES):
     imgageXXXX_path = my_image_base+str(img_idx).zfill(4)+'.tif'
     img_XXXX = mpimg.imread(imgageXXXX_path)
+    roi = sample_roi[my_samples[S_IDX]]
     R,p=stats.pearsonr(img_ref[roi[0]:roi[1],roi[2]:roi[3]].flatten(),
                      img_XXXX[roi[0]:roi[1],roi[2]:roi[3]].flatten())
     mytrace.append(R)

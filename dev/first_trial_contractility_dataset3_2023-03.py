@@ -78,11 +78,15 @@ sample_info  = pd.read_excel(my_work_dir+'2023-03-15_sample_metadata.xlsx')
 # Sample list
 my_samples = sample_info['sample_name'].to_numpy()
 
-# Dict with frame time
+# Load more information
+
+# Dict with times between frames
 sample_info['dt'] = sample_info['duration_movie']/sample_info['total_frames']
 sample_dt = {sample_info['sample_name'][ii]:sample_info['dt'][ii] for ii in range(len(sample_info))}
+# ROIs for each of the movies
 sample_roi_ = {sample_info['sample_name'][ii]:sample_info['roi'][ii] for ii in range(len(sample_info))} # read ROI as string
 sample_roi  = {key:[int(x) for x in sample_roi_[key].replace('\ufeff','').split(', ')] for key in sample_roi_.keys()} # convert strings to int
+# Reference image for each of the movies (correlation will be determined between this one and all other ones)
 sample_refimg = {sample_info['sample_name'][ii]:sample_info['ref_frame'][ii] for ii in range(len(sample_info))}
  
 ###############################################################################
@@ -115,7 +119,6 @@ else:
 # so we don't want to normalize on single-image basis in the eventual analysis
 img_norm = (img-np.min(img))/(np.max(img)-np.min(img))
 
-plt.cm.
 
 imgplot = plt.imshow(img_norm, cmap = 'gray')
 #imgplot = plt.imshow(img_norm, vmin = 0.4, vmax=.6)#, norm=colors.PowerNorm(gamma=1. / 2.))
@@ -160,6 +163,9 @@ for current_sample in SELECTED_SAMPLES:
     collected_ROIs[current_sample] = roi
 
 collected_ROIs
+
+# Now go back to the section that updates the sample information from the excel
+# file (don't forget to save the excel file)
 
 ###############################################################################
 
@@ -246,6 +252,11 @@ if False:
 
     [i for i in range(len(my_samples)) if my_samples[i] == '2023-03-15-MW-PC-epi-titrate.lif_B4-p1-nt']
     [i for i in range(len(my_samples)) if my_samples[i] == '2023-03-15-MW-PC-epi-titrate.lif_B2-p2-nt-r2']
+
+
+# Now put this information in the excel file, re-load the excel file with the
+# code at the beginning, and execute this section again to make sure all plots
+# look good.
 
 
 
@@ -634,6 +645,17 @@ plt.close('all')
 # acquisition rate is 0.009831 s, so this simply means that 
 # the length in terms of frames is 59 frames, and it seems reasonable that
 # that value could be found exactly multiple times.
+
+
+
+
+
+
+
+
+
+
+
 
 
 ###############################################################################

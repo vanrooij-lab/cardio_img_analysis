@@ -444,7 +444,10 @@ if False:
     my_samples[S_IDX]
     plt.imshow(img_ref[roi[0]:roi[1],roi[2]:roi[3]])
     plt.imshow(img_XXXX[roi[0]:roi[1],roi[2]:roi[3]])
-    
+
+
+# Save important data
+#    
 # Explicitly save this parameter, to skip the lengthy part of the analysis
 # later.
 if not os.path.exists(my_work_dir+"saved_data/"):

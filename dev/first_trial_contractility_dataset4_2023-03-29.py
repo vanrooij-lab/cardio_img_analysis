@@ -450,10 +450,13 @@ if False:
 #    
 # Explicitly save this parameter, to skip the lengthy part of the analysis
 # later.
+# Create output directory
 if not os.path.exists(my_work_dir+"saved_data/"):
     os.mkdir(my_work_dir+"saved_data/")
+# Create string with current date
 current_date_and_time = datetime.now()
 current_date = current_date_and_time.strftime("%Y-%m-%d")
+# Save the parameter using pickle library
 pickle.dump( list_traces_corrcontr, open( my_work_dir+"saved_data/"+current_date+"_list_traces_corrcontr.p", "wb" ) )
 # To load, use
 # list_traces_corrcontr = pickle.load( open( my_work_dir+"saved_data/"+"2023-04-03"+"_list_traces_corrcontr.p", "rb" ) )

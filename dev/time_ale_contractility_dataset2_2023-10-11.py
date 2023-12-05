@@ -76,9 +76,16 @@ def readimg_roi(path, roi):
 
 IMGNAMESUFFIX='_ch00'
 
-my_work_dir = '/Volumes/Wehrens_Mic/RAW_DATA/2023-09-26n27_images-collected/raw/'
+my_work_dir = '/Volumes/Wehrens_Mic/RAW_DATA/2023-10-11/TIF_ORGANIZED/'
 
-my_out_dir   = '/Users/m.wehrens/Data/__contractility/2023-09-26n27_Analysis/'
+# For plate 2
+my_out_dir   = '/Volumes/Wehrens_Mic/RAW_DATA/2023-10-11_Analysis/Analysis_Plate2/'
+sample_annotation_filepath = my_out_dir+'2023_10_11_Tim_Ale__positions_CM.xlsx'
+
+# For plate 1
+my_out_dir   = '/Volumes/Wehrens_Mic/RAW_DATA/2023-10-11_Analysis/Analysis_Plate1/'
+sample_annotation_filepath = my_out_dir+'2023_10_11_Tim_Ale__positions_CM_PLATE1.xlsx'
+
 
 if not (os.path.isdir(my_out_dir)): 
     os.mkdir(my_out_dir)
@@ -88,24 +95,40 @@ if not (os.path.isdir(my_out_dir)):
 # You might need to execute this sectino multiple times to "refresh" the
 # parameters when you update them in the excel.
 
-# Sample information
-# Assuming each of the samples correspond to a subdir of work dir defined above
-sample_info  = pd.read_excel(my_out_dir+'2023_09_Tim_Ale__positions_CM_SELECTION2.xlsx')
-
-# Sample list
-my_samples = sample_info['sample_name'].to_numpy()
-
-# Load more information
-
-# Dict with times between frames
-sample_info['dt'] = sample_info['duration_movie']/sample_info['total_frames']
-sample_dt = {sample_info['sample_name'][ii]:sample_info['dt'][ii] for ii in range(len(sample_info))}
-# ROIs for each of the movies
-sample_roi_ = {sample_info['sample_name'][ii]:sample_info['roi'][ii] for ii in range(len(sample_info))} # read ROI as string
-sample_roi  = {key:[int(x) for x in sample_roi_[key].replace('\ufeff','').split(', ')] for key in sample_roi_.keys()} # convert strings to int
-# Reference image for each of the movies (correlation will be determined between this one and all other ones)
-sample_refimg = {sample_info['sample_name'][ii]:sample_info['ref_frame'][ii] for ii in range(len(sample_info))}
+def read_sample_information(sample_annotation_filepath):
+    
+    # Sample information
+    # Assuming each of the samples correspond to a subdir of work dir defined above
+    sample_info  = pd.read_excel(sample_annotation_filepath)
+    
+    # Sample list
+    my_samples = sample_info['sample_name'].to_numpy()
+    
+    # Load more information
+    
+    # Dict with times between frames
+    sample_info['dt'] = sample_info['duration_movie']/sample_info['total_frames']
+    
+    sample_dt = {sample_info['sample_name'][ii]:sample_info['dt'][ii] for ii in range(len(sample_info))}
+    # ROIs for each of the movies
+    sample_roi_ = {sample_info['sample_name'][ii]:sample_info['roi'][ii] for ii in range(len(sample_info))} # read ROI as string
+    sample_roi  = {key:[int(x) for x in sample_roi_[key].replace('\ufeff','').split(', ')] for key in sample_roi_.keys()} # convert strings to int
+    # Reference image for each of the movies (correlation will be determined between this one and all other ones)
+    sample_refimg = {sample_info['sample_name'][ii]:sample_info['ref_frame'][ii] for ii in range(len(sample_info))}
+    
+    sample_info_dicts = {'dt':sample_dt,
+                         'roi':sample_roi,
+                         'refimg':sample_refimg,
+                         'name':my_samples}
+    
+    return sample_info, sample_info_dicts
  
+
+sample_info, sample_info_dicts =\
+    read_sample_information(sample_annotation_filepath)
+   
+    
+
 ###############################################################################
 # Create a series of movies, using custom scripted function loaded above
 # Note that I only look at first 500 frames, skipping 10 frames, because
@@ -133,40 +156,6 @@ for current_sample_name in sample_info['sample_name'][sample_info['create_movie'
 S_IDX = 1 # sample index
 
 ###############################################################################
-# Load image and show it
-# Just for convenience, this is not a necessary part of the script
-
-#my_image_dir = '/Volumes/workdrive_m.wehrens_hubrecht/microscopy_images/pictures/'
-#my_image = 'pilot-4nov_b1_pos1_movie_t0000.tif'
-#my_image_base = 'pilot-4nov_b1_pos1_movie_t'
-#my_image_path = my_image_dir+my_image
-
-S_IDX=4
-# img_ = mpimg.imread(my_work_dir+my_samples[S_IDX]+'/'+my_samples[S_IDX]+'/'+my_samples[S_IDX]+'_t'+str(img_idx).zfill(4)+'.tif')
-img_ = mpimg.imread(my_work_dir+my_samples[S_IDX]+'/'+my_samples[S_IDX]+'_t'+str(img_idx).zfill(4)+IMGNAMESUFFIX+'.tif')
-
-# Collapse the image from RGB to single grey value
-if len(shape(img))==3:
-    img = img_[:,:,0]
-else:
-    img = img_
-# Sanity check
-if (np.all(img_[:,:,0]==img_[:,:,1])):
-    print("Check passed")
-else:
-    print("Check failed")
-
-# normalize image
-# note that the signal will vary from one image to the next
-# so we don't want to normalize on single-image basis in the eventual analysis
-img_norm = (img-np.min(img))/(np.max(img)-np.min(img))
-
-
-imgplot = plt.imshow(img_norm, cmap = 'gray')
-#imgplot = plt.imshow(img_norm, vmin = 0.4, vmax=.6)#, norm=colors.PowerNorm(gamma=1. / 2.))
-plt.show()
-
-###############################################################################
 # Determine a region for this image set
 # Put this in the excel file, and then reload informatino from the excel 
 # file again
@@ -177,38 +166,52 @@ plt.show()
 # SELECTED_SAMPLES = ['2023_03_29.lif_A1-p1-nt', '2023_03_29.lif_A1-p2-nt', '2023_03_29.lif_A2-p1-nt', '2023_03_29.lif_A2-p2-nt', '2023_03_29.lif_B1-p1-nt', '2023_03_29.lif_B1-p2-nt', '2023_03_29.lif_B2-p1-nt', '2023_03_29.lif_B2-p2-nt']
 SELECTED_SAMPLES = sample_info['sample_name'][sample_info['create_movie']=='yes'].values
 
-#collected_ROIs = np.full([len(my_samples),4], np.nan)
-collected_ROIs = {}
-for current_sample in SELECTED_SAMPLES:
+def define_ROIs(my_work_dir, SELECTED_SAMPLES, IMGNAMESUFFIX = '_ch00'):
     
-    print('Now showing '+current_sample)
+    #collected_ROIs = np.full([len(my_samples),4], np.nan)
+    collected_ROIs = {}
+    for current_sample in SELECTED_SAMPLES:
+        
+        print('Now showing '+current_sample)
+        
+        # Load the image
+        img_idx=0
+        img = mpimg.imread(my_work_dir+current_sample+'/'+current_sample+'_t'+str(img_idx).zfill(4)+IMGNAMESUFFIX+'.tif')
+        # img = img[:,:,0] # depends how images where exported
+        img_norm = (img-np.min(img))/(np.max(img)-np.min(img))
+        
+        # Select the ROI
+        roi_=cv2.selectROI('ROI_select', img_norm)
+        roi = [roi_[1],  roi_[3]+roi_[1], roi_[0], roi_[2]+roi_[0]]
+            # roi_ = x1, y1, dx, dy; but x and y reversal somewhere
+            # roi = [y1,y2,x1,x2]
+        
+        cv2.destroyWindow('ROI_select') 
+        cv2.waitKey(1) # required due to buggy cv2/gtk behavior https://stackoverflow.com/questions/6116564/destroywindow-does-not-close-window-on-mac-using-python-and-opencv
+        
+        imgplot = plt.imshow(img_norm[roi[0]:roi[1],roi[2]:roi[3]])
+        plt.show()
+        
+        roi
+        
+        collected_ROIs[current_sample] = roi
+        
+        plt.close()
     
-    # Load the image
-    img_idx=0
-    img = mpimg.imread(my_work_dir+current_sample+'/'+current_sample+'_t'+str(img_idx).zfill(4)+IMGNAMESUFFIX+'.tif')
-    # img = img[:,:,0] # depends how images where exported
-    img_norm = (img-np.min(img))/(np.max(img)-np.min(img))
-    
-    # Select the ROI
-    roi_=cv2.selectROI('ROI_select', img_norm)
-    roi = [roi_[1],  roi_[3]+roi_[1], roi_[0], roi_[2]+roi_[0]]
-        # roi_ = x1, y1, dx, dy; but x and y reversal somewhere
-        # roi = [y1,y2,x1,x2]
-    
-    cv2.destroyWindow('ROI_select') 
-    cv2.waitKey(1) # required due to buggy cv2/gtk behavior https://stackoverflow.com/questions/6116564/destroywindow-does-not-close-window-on-mac-using-python-and-opencv
-    
-    imgplot = plt.imshow(img_norm[roi[0]:roi[1],roi[2]:roi[3]])
-    plt.show()
-    
-    roi
-    
-    collected_ROIs[current_sample] = roi
+    return collected_ROIs
 
+collected_ROIs = define_ROIs(my_work_dir, SELECTED_SAMPLES, IMGNAMESUFFIX)
 collected_ROIs
 
-# Now go back to the section that updates the sample information from the excel
-# file (don't forget to save the excel file)
+df_ROI = \
+    pd.DataFrame({
+                    'Sample name':collected_ROIs.keys(),
+                    'ROI':[str(v).replace('[','').replace(']','') for v in collected_ROIs.values()]  })
+df_ROI.to_excel(my_out_dir+'automatic_ROIs.xlsx')
+
+# Now add the above values into the annotation excel file, and reload the excel file 
+# information using the line below.
+sample_info, sample_info_dicts = read_sample_information(sample_annotation_filepath)
 
 ###############################################################################
 # Output all ROI regions as images
@@ -217,29 +220,102 @@ ROI_dir = my_out_dir+'ROIs/'
 if not (os.path.isdir(ROI_dir)): 
     os.mkdir(ROI_dir)
 
-img_idx = 1
+img_idx = 0
 
 # Output all ROIs for the images
-for S_IDX in range(len(my_samples)):
+for S_IDX in range(len(sample_info_dicts['name'])):
     
     # S_IDX=4
     
-    F = plt.figure()
-    
-    img_ = mpimg.imread(my_work_dir+my_samples[S_IDX]+'/'+my_samples[S_IDX]+\
+    # Load the image
+    img = mpimg.imread(my_work_dir+sample_info_dicts['name'][S_IDX]+'/'+sample_info_dicts['name'][S_IDX]+\
                         '_t'+str(img_idx).zfill(4)+IMGNAMESUFFIX+'.tif')
+    # img = img[:,:,0] # depends how images where exported        
     img_norm = (img-np.min(img))/(np.max(img)-np.min(img))
     
-    current_roi = sample_roi[my_samples[S_IDX]]
+    # What are the ROI coordinates?
+    current_roi = sample_info_dicts['roi'][sample_info_dicts['name'][S_IDX]]
     
-    imgplot = plt.imshow(img_norm[current_roi[0]:current_roi[1],current_roi[2]:current_roi[3]], cmap = 'gray')
-    
-    # plt.show()
-    
-    plt.savefig(ROI_dir+'ROI_'+my_samples[S_IDX]+'.pdf')
-    
+    # Plot it
+    F = plt.figure()
+    imgplot = plt.imshow(img_norm[current_roi[0]:current_roi[1],current_roi[2]:current_roi[3]], cmap = 'gray')    
+    plt.title(sample_info_dicts['name'][S_IDX])
+    # plt.show()    
+    plt.savefig(ROI_dir+'ROI_'+sample_info_dicts['name'][S_IDX]+'.pdf')
     plt.close(F)
     
+###############################################################################
+
+# See the script:    
+# time_ale_contractility_dataset2_2023-10-11_EXTENSIONS.py
+# for additional custom plots.
+        
+
+
+
+
+###############################################################################
+###############################################################################
+# Create a folder with cropped images
+# NOTE THAT THIS TAKES LONG!
+
+from datetime import datetime # for some reason throws error otherwise ..
+
+ZIPCROPPED = False
+NR_FRAMES = 1500 # frames 1 .. NR_FRAMES will be considered for the analysis
+    # I now did 500 but there are already 4 datasets where it's better to 
+    # take 1000 frames; probably best to repeat this analysis with the max
+    # amount of frames and just store that data. (In this case, max 'd be 2000.)
+
+if not os.path.exists(my_work_dir+'data_cropped'):
+    os.mkdir(my_work_dir+'data_cropped')
+
+for S_IDX in range(len(sample_info_dicts['name'])):
+# for S_IDX in [S_IDX for S_IDX in range(len(sample_info_dicts['name'])) if '27_' in sample_info_dicts['name'][S_IDX]]:    
+    
+    # In case there are some exception-cases, this allows easy manual updating
+    # S_IDX = 18; NR_FRAMES = 1000 
+    # S_IDX = 23; NR_FRAMES = 1000    
+    # S_IDX = 30; NR_FRAMES = 1000
+    # S_IDX = 24; NR_FRAMES = 1000    
+    
+    # For convenience, give user some information
+    print("Working on sample " + sample_info_dicts['name'][S_IDX]+', '+\
+          str(S_IDX+1)+'/'+str(len(sample_info_dicts['name'])))
+    current_date_and_time = datetime.now()
+    print(str(current_date_and_time))
+    
+    # Get parameters
+    roi = sample_info_dicts['roi'][sample_info_dicts['name'][S_IDX]]
+    
+    # Image path base
+    my_image_dir = my_work_dir+sample_info_dicts['name'][S_IDX]+'/'
+    
+    # Now loop over images and correlate image with original image
+    # note that I aimed for a frame rate of ±40fps, so if it beats
+    # every 10 secs, i need to analyze 400 images ..
+
+    if not os.path.exists(my_work_dir+'data_cropped/CROP_'+sample_info_dicts['name'][S_IDX]+'/'):
+        os.mkdir(my_work_dir+'data_cropped/CROP_'+sample_info_dicts['name'][S_IDX]+'/')
+        
+    for img_idx in range(0, NR_FRAMES):
+        my_img_filename = sample_info_dicts['name'][S_IDX]+'_t'+str(img_idx).zfill(4)+IMGNAMESUFFIX  
+        imgageXXXX_path = my_image_dir+my_img_filename+'.tif'
+        img_XXXX = mpimg.imread(imgageXXXX_path)
+                
+        #np.save(my_work_dir+'data_cropped/CROP_'+sample_info_dicts['name'][S_IDX]+'/'+sample_info_dicts['name'][S_IDX]+'_cropped.npy',\
+        #             img_XXXX[roi[0]:roi[1],roi[2]:roi[3]])
+        if ZIPCROPPED:
+            np.savez_compressed(my_work_dir+'data_cropped/CROP_'+sample_info_dicts['name'][S_IDX]+'/'+   my_img_filename+'_cropped.npz'    ,\
+                                img_XXXX[roi[0]:roi[1],roi[2]:roi[3]])
+        else:
+            np.save(my_work_dir+'data_cropped/CROP_'+sample_info_dicts['name'][S_IDX]+'/'+   my_img_filename+'_cropped.npy'    ,\
+                                img_XXXX[roi[0]:roi[1],roi[2]:roi[3]])
+            
+        if (img_idx%200==0):
+            print(str(round(img_idx/NR_FRAMES*100,1))+'% done..')
+            
+
     
 ###############################################################################
 ###############################################################################
@@ -257,34 +333,49 @@ if not (os.path.isdir(PREANA_dir)):
 # REF_IMG = 85
 NR_FRAMES = 250
 
-my_samples
+sample_info_dicts['name']
 
-for S_IDX in range(len(my_samples)):
-# for S_IDX in [S_IDX for S_IDX in range(len(my_samples)) if '27_' in my_samples[S_IDX]]:
+for S_IDX in range(len(sample_info_dicts['name'])):
+# for S_IDX in [S_IDX for S_IDX in range(len(sample_info_dicts['name'])) if '27_' in sample_info_dicts['name'][S_IDX]]:
     
     # S_IDX=21; NR_FRAMES = 250
     
-    print('Performing calculation for '+str(S_IDX+1)+'/'+str(len(my_samples)))
+    print('Performing calculation for '+str(S_IDX+1)+'/'+str(len(sample_info_dicts['name'])))
     
-    REF_IMG = sample_refimg[my_samples[S_IDX]]
-    roi = sample_roi[my_samples[S_IDX]]    
+    REF_IMG = sample_info_dicts['refimg'][sample_info_dicts['name'][S_IDX]]
+    roi = sample_info_dicts['roi'][sample_info_dicts['name'][S_IDX]]    
     
     # Example of correlation calculation
     # thecorr, p = stats.pearsonr([1,2,3],[1,2,2])
     
-    my_image_base = my_work_dir+my_samples[S_IDX]+'/'+my_samples[S_IDX]+'_t'
+    # my_image_base = my_work_dir+sample_info_dicts['name'][S_IDX]+'/'+sample_info_dicts['name'][S_IDX]+'_t'
     
     # Now loop over images and correlate image with original image
-    # note that I aimed for a frame rate of ±40fps, so if it beats
-    # every 10 secs, i need to analysze 400 images ..
-    refimage_path = my_image_base+str(REF_IMG).zfill(4)+IMGNAMESUFFIX+'.tif'
-    img_ref = mpimg.imread(refimage_path)
+    # note that framerate is ±100 fps, if it beats every <4 seconds, 
+    # i need to analysze 400 images ..
+    # Load ref image from full path
+    # refimage_path = my_image_base+str(REF_IMG).zfill(4)+IMGNAMESUFFIX+'.tif'
+    # img_ref = mpimg.imread(refimage_path)
+    
+    # Load ref image from cropped version
+    cropped_pic_dir = my_work_dir+'data_cropped/CROP_'+sample_info_dicts['name'][S_IDX]+'/'
+    my_img_filename = sample_info_dicts['name'][S_IDX]+'_t'+str(REF_IMG).zfill(4)+IMGNAMESUFFIX+'_cropped.npy'
+    img_ref = np.load(cropped_pic_dir +  my_img_filename)         
+            
     mytrace=[]
     for img_idx in range(0, NR_FRAMES):
-        imgageXXXX_path = my_image_base+str(img_idx).zfill(4)+IMGNAMESUFFIX+'.tif'
-        img_XXXX = mpimg.imread(imgageXXXX_path)
-        R,p=stats.pearsonr(img_ref[roi[0]:roi[1],roi[2]:roi[3]].flatten(),
-                         img_XXXX[roi[0]:roi[1],roi[2]:roi[3]].flatten())
+        
+        # Load the images (load from uncropped)
+        # imgageXXXX_path = my_image_base+str(img_idx).zfill(4)+IMGNAMESUFFIX+'.tif'
+        # img_XXXX = mpimg.imread(imgageXXXX_path)
+        
+        # Load images (load from already cropped files)
+        cropped_pic_dir = my_work_dir+'data_cropped/CROP_'+sample_info_dicts['name'][S_IDX]+'/'
+        my_img_filename = sample_info_dicts['name'][S_IDX]+'_t'+str(img_idx).zfill(4)+IMGNAMESUFFIX+'_cropped.npy'
+        img_XXXX = np.load(cropped_pic_dir +  my_img_filename)         
+            
+        # Calculate correlation        
+        R,p=stats.pearsonr(img_ref.flatten(),  img_XXXX.flatten())
         mytrace.append(R)
         if (img_idx%10==0):
             print(str(round(img_idx/NR_FRAMES*100,2))+'% done..')
@@ -297,217 +388,32 @@ for S_IDX in range(len(my_samples)):
     fig, ax = plt.subplots()
     ax.plot(f,mytrace_1min)
     ax.plot(REF_IMG,0,'^k') # ###    
-    plt.title(my_samples[S_IDX])
+    plt.title(sample_info_dicts['name'][S_IDX])
     ax.set_xticks(np.arange(0,NR_FRAMES,50))
     ax.set_xticks(np.arange(0,NR_FRAMES,10), minor=True)
     ax.grid(axis = 'x', which='minor')
     ax.grid(axis = 'x', which='major')
     
     
-    plt.savefig(PREANA_dir+'correlation_function_calibration_'+my_samples[S_IDX]+'.pdf')
+    plt.savefig(PREANA_dir+'correlation_function_calibration_'+sample_info_dicts['name'][S_IDX]+'.pdf')
     # plt.show()
     plt.close(fig)
-    
-# Some code to identify the index of a specific dataset
-# This code can be ignored
-if False: 
-    [i for i in range(len(my_samples)) if my_samples[i] == '2023-03-15-MW-PC-epi-titrate.lif_B2-p1-nt']
-    [i for i in range(len(my_samples)) if my_samples[i] == '2023-03-15-MW-PC-epi-titrate.lif_B2-p2-nt']
-
-    [i for i in range(len(my_samples)) if my_samples[i] == '2023-03-15-MW-PC-epi-titrate.lif_B4-p1-nt']
-    [i for i in range(len(my_samples)) if my_samples[i] == '2023-03-15-MW-PC-epi-titrate.lif_B2-p2-nt-r2']
-
+  
 
 # Now put this information in the excel file, re-load the excel file with the
 # code at the beginning, and execute this section again to make sure all plots
 # look good.
-
-
-
-###############################################################################
-# Another plot (redundant, can be ignored)
-
-f=np.array(range(0,NR_FRAMES))
-t=f*sample_dt[my_samples[S_IDX]]
-mytrace_1min = np.array([1-val for val in mytrace])
-
-my_dpi=600
-
-major_ticks = np.arange(0, np.max(t), 1)
-minor_ticks = np.arange(0, np.max(t), 1)
-
-fig = plt.figure(figsize=(10/2.54, 10/2.54), dpi=my_dpi)      
-
-ax=fig.add_subplot(1, 1, 1)
-plt.plot(t,mytrace_1min)
-ax.set_xticks(major_ticks)
-#ax.set_xticks(minor_ticks, minor=True)
-ax.grid(axis = 'x', which='major')
-plt.title(my_samples[S_IDX])
-plt.xlabel('Time (s)')
-plt.ylabel('Correlation with image '+str(REF_IMG))
-plt.xlim((0, 5))
-
-plt.show()
-
-###############################################################################
-# Difference with reference image
-# (Not used any more, can be ignored..)
-
-# See line 748 other script
-frs_of_interest = [location_closest_value(t, t_show)[0] for t_show in [1, 1.2, 1.4, 1.6, 1.8, 2]]
-
-
-current_ref_img_path = my_image_base+str(REF_IMG).zfill(4)+'.tif'
-ref_img = readimg_roi(current_ref_img_path, roi)
-
-image_series = [readimg_roi(my_image_base+str(fr).zfill(4)+'.tif', roi) for fr in frs_of_interest]
-
-# Use 1st image as reference
-image_series_delta = [img-image_series[0] for img in image_series]
-
-# Ref image correlation-ref-image
-#image_series_delta = [img-ref_img for img in image_series]
-
-overall_min = np.min(image_series_delta)
-overall_max = np.max(image_series_delta)
-
-# Single image
-#imgplot = plt.imshow(image_series[4]-ref_img)
-#plt.show()
-
-###############################################################################
-# Create a nice figure
-# (Not used any more, can be ignored..)
-
-fig = plt.figure(figsize=(10/2.54,10/2.54), dpi=600) 
-
-# Plot the trace
-ax=fig.add_subplot(3, 1, 1)
-plt.plot(t,mytrace_1min)
-plt.plot(t[frs_of_interest],mytrace_1min[frs_of_interest], 'ko')
-ax.set_xticks(major_ticks)
-#ax.set_xticks(minor_ticks, minor=True)
-ax.grid(axis = 'x', which='major')
-plt.title(my_samples[S_IDX])
-plt.xlabel('Time (s)')
-plt.ylabel('1-Corr with image '+str(REF_IMG))
-plt.xlim((0, 5))
-
-for ii in range(len(frs_of_interest)):
-
-    fr_of_interest = frs_of_interest[ii]
-    # fr_of_interest=frs_of_interest[0]
-        
-    print('fr '+str(fr_of_interest))
-    
-    ax=fig.add_subplot(3, 6, 1*6+ii+1)
-    
-    current_img=image_series_delta[ii]
-                 
-    # Create little example movies
-    ax = plt.imshow(current_img, vmin=overall_min, vmax=overall_max,
-                   cmap=plt.get_cmap('hot'), interpolation='nearest')
-    #plt.colorbar(ax)
-    plt.axis('off')    
-    
-    ax=fig.add_subplot(3, 6, 2*6+ii+1)
-    
-    current_img=image_series[ii]
-                 
-    # Create little example movies
-    ax = plt.imshow(current_img,
-                   cmap=plt.get_cmap('hot'), interpolation='nearest')
-    #plt.colorbar(ax)
-    plt.axis('off')    
-    
-    #plt.title('Image @ t_adj='+str(np.round(t_adj[fr_of_interest],2))+' seconds')
-
-plt.tight_layout()
-plt.show()
-
-fig.savefig(my_out_dir+'custom_example_contr-corr_'+my_samples[S_IDX]+'_img.pdf')
-
-
-
-###############################################################################
-###############################################################################
-# Create a folder with cropped images
-
-
-#
-#               WORK IN PROGRESS  !!!!! ! ! ! ! !  ! ! !  ! !
-#
-#
-
-
-from datetime import datetime # for some reason throws error otherwise ..
-
-ZIPCROPPED = False
-NR_FRAMES = 1500 # frames 1 .. NR_FRAMES will be considered for the analysis
-    # I now did 500 but there are already 4 datasets where it's better to 
-    # take 1000 frames; probably best to repeat this analysis with the max
-    # amount of frames and just store that data. (In this case, max 'd be 2000.)
-
-if not os.path.exists(my_work_dir+'data_cropped'):
-    os.mkdir(my_work_dir+'data_cropped')
-
-for S_IDX in range(len(my_samples)):
-# for S_IDX in [S_IDX for S_IDX in range(len(my_samples)) if '27_' in my_samples[S_IDX]]:    
-    
-    # In case there are some exception-cases, this allows easy manual updating
-    # S_IDX = 18; NR_FRAMES = 1000 
-    # S_IDX = 23; NR_FRAMES = 1000    
-    # S_IDX = 30; NR_FRAMES = 1000
-    # S_IDX = 24; NR_FRAMES = 1000    
-    
-    # For convenience, give user some information
-    print("Working on sample " + my_samples[S_IDX]+', '+\
-          str(S_IDX+1)+'/'+str(len(my_samples)))
-    current_date_and_time = datetime.now()
-    print(str(current_date_and_time))
-    
-    # Get parameters
-    roi = sample_roi[my_samples[S_IDX]]
-    
-    # Image path base
-    my_image_dir = my_work_dir+my_samples[S_IDX]+'/'
-    
-    # Now loop over images and correlate image with original image
-    # note that I aimed for a frame rate of ±40fps, so if it beats
-    # every 10 secs, i need to analyze 400 images ..
-
-    if not os.path.exists(my_work_dir+'data_cropped/CROP_'+my_samples[S_IDX]+'/'):
-        os.mkdir(my_work_dir+'data_cropped/CROP_'+my_samples[S_IDX]+'/')
-        
-    for img_idx in range(0, NR_FRAMES):
-        my_img_filename = my_samples[S_IDX]+'_t'+str(img_idx).zfill(4)+IMGNAMESUFFIX  
-        imgageXXXX_path = my_image_dir+my_img_filename+'.tif'
-        img_XXXX = mpimg.imread(imgageXXXX_path)
-                
-        #np.save(my_work_dir+'data_cropped/CROP_'+my_samples[S_IDX]+'/'+my_samples[S_IDX]+'_cropped.npy',\
-        #             img_XXXX[roi[0]:roi[1],roi[2]:roi[3]])
-        if ZIPCROPPED:
-            np.savez_compressed(my_work_dir+'data_cropped/CROP_'+my_samples[S_IDX]+'/'+   my_img_filename+'_cropped.npz'    ,\
-                                img_XXXX[roi[0]:roi[1],roi[2]:roi[3]])
-        else:
-            np.save(my_work_dir+'data_cropped/CROP_'+my_samples[S_IDX]+'/'+   my_img_filename+'_cropped.npy'    ,\
-                                img_XXXX[roi[0]:roi[1],roi[2]:roi[3]])
-            
-        if (img_idx%200==0):
-            print(str(round(img_idx/NR_FRAMES*100,1))+'% done..')
-            
+sample_info, sample_info_dicts =\
+    read_sample_information(sample_annotation_filepath)
 
 
 
 ###############################################################################
 ###############################################################################
 # Contractility-plot based on correlation again
-# Same as above, but now automated over samples
+# Same as above, but now goes over full length
+# of the movie. 
 # NOTE THAT THIS TAKES LONG!
-
-# TO DO:
-# Implement storing the cropped images
 
 from datetime import datetime # for some reason throws error otherwise ..
 
@@ -517,7 +423,7 @@ NR_FRAMES = 1500 # frames 1 .. NR_FRAMES will be considered for the analysis
     # amount of frames and just store that data. (In this case, max 'd be 2000.)
 
 list_traces_corrcontr = {}
-for S_IDX in range(len(my_samples)):
+for S_IDX in range(len(sample_info_dicts['name'])):
 # for S_IDX in [S_IDX for S_IDX in range(len(my_samples)) if '27_' in my_samples[S_IDX]]:    
     
     # In case there are some exception-cases, this allows easy manual updating
@@ -527,45 +433,46 @@ for S_IDX in range(len(my_samples)):
     # S_IDX = 24; NR_FRAMES = 1000    
     
     # For convenience, give user some information
-    print("Working on sample " + my_samples[S_IDX]+', '+\
-          str(S_IDX+1)+'/'+str(len(my_samples)))
+    print("Working on sample " + sample_info_dicts['name'][S_IDX]+', '+\
+          str(S_IDX+1)+'/'+str(len(sample_info_dicts['name'])))
     current_date_and_time = datetime.now()
     print(str(current_date_and_time))
     
     # Get parameters
-    REF_IMG = sample_refimg[my_samples[S_IDX]]
-    roi = sample_roi[my_samples[S_IDX]]
+    REF_IMG = sample_info_dicts['refimg'][sample_info_dicts['name'][S_IDX]]
+    # roi = sample_roi[my_samples[S_IDX]]
     
     # Example of correlation calculation
     # thecorr, p = stats.pearsonr([1,2,3],[1,2,2])
     
     # Image path base
-    my_image_base = my_work_dir+my_samples[S_IDX]+'/'+my_samples[S_IDX]+'_t'
+    # my_image_base = my_work_dir+my_samples[S_IDX]+'/'+my_samples[S_IDX]+'_t'
     
     # Now loop over images and correlate image with original image
     # note that I aimed for a frame rate of ±40fps, so if it beats
     # every 10 secs, i need to analyze 400 images ..
-    refimage_path = my_image_base+str(REF_IMG).zfill(4)+IMGNAMESUFFIX+'.tif'
-    img_ref = mpimg.imread(refimage_path)
+    # refimage_path = my_image_base+str(REF_IMG).zfill(4)+IMGNAMESUFFIX+'.tif'
+    # img_ref = mpimg.imread(refimage_path)
+    # Load images (load from already cropped files)
+    cropped_pic_dir = my_work_dir+'data_cropped/CROP_'+sample_info_dicts['name'][S_IDX]+'/'
+    my_img_filename = sample_info_dicts['name'][S_IDX]+'_t'+str(REF_IMG).zfill(4)+IMGNAMESUFFIX+'_cropped.npy'
+    img_ref = np.load(cropped_pic_dir +  my_img_filename)         
+    
     mytrace=[]
     for img_idx in range(0, NR_FRAMES):
-        imgageXXXX_path = my_image_base+str(img_idx).zfill(4)+IMGNAMESUFFIX+'.tif'
-        img_XXXX = mpimg.imread(imgageXXXX_path)
-        R,p=stats.pearsonr(img_ref[roi[0]:roi[1],roi[2]:roi[3]].flatten(),
-                         img_XXXX[roi[0]:roi[1],roi[2]:roi[3]].flatten())
+        
+        # Load images (load from already cropped files)
+        my_img_filename = sample_info_dicts['name'][S_IDX]+'_t'+str(img_idx).zfill(4)+IMGNAMESUFFIX+'_cropped.npy'
+        img_XXXX = np.load(cropped_pic_dir +  my_img_filename)                 
+        
+        R,p=stats.pearsonr(img_ref.flatten(), img_XXXX.flatten())
         mytrace.append(R)
         if (img_idx%200==0):
             print(str(round(img_idx/NR_FRAMES*100,1))+'% done..')
             
-    list_traces_corrcontr[my_samples[S_IDX]] = mytrace
-            
-# Little bit of debugging
-# (You can ignore this code.)
-if False:
-    my_samples[S_IDX]
-    plt.imshow(img_ref[roi[0]:roi[1],roi[2]:roi[3]])
-    plt.imshow(img_XXXX[roi[0]:roi[1],roi[2]:roi[3]])
-
+    list_traces_corrcontr[sample_info_dicts['name'][S_IDX]] = mytrace
+      
+    
 
 # Save important data
 #    
@@ -589,9 +496,9 @@ if not os.path.exists(my_out_dir+"analysis/"):
     os.mkdir(my_out_dir+"analysis/")
 
 # Establish peaks and 1-signal
-PEAKMINTIME = .5 # estimate of minimum distance between peaks
+PEAKMINTIME   = .5 # estimate of minimum distance between peaks
 SMOOTHINGTIME = .2 # estimate of minimum distance between peaks
-PEAKMINHEIGHT = .7 # expressed as quantile
+PEAKMINHEIGHT = .8 # expressed as quantile
 first_peaks = {}
 second_peaks = {}
 first_peak_height = {}
@@ -599,16 +506,18 @@ list_traces_1min = {}
 list_minvals={}
 list_maxvals={}
 
-for S_IDX in range(len(my_samples)):
+for S_IDX in range(len(sample_info_dicts['name'])):
     
-    current_trace      = list_traces_corrcontr[my_samples[S_IDX]]    
+    # S_IDX = 11
+    
+    current_trace      = list_traces_corrcontr[sample_info_dicts['name'][S_IDX]]    
     current_trace_1min = np.array([1-val for val in current_trace])
 
     f = np.arange(0,len(current_trace))
     
     # estimate time scale for peaks in terms of frames
-    current_distance = int(round(PEAKMINTIME/sample_dt[my_samples[S_IDX]]))
-    current_smoothing_window = int(round(SMOOTHINGTIME/sample_dt[my_samples[S_IDX]]))
+    current_distance = int(round(PEAKMINTIME/sample_info_dicts['dt'][sample_info_dicts['name'][S_IDX]]))
+    current_smoothing_window = int(round(SMOOTHINGTIME/sample_info_dicts['dt'][sample_info_dicts['name'][S_IDX]]))
     if (current_smoothing_window % 2 == 0):
         current_smoothing_window += 1
     
@@ -621,7 +530,7 @@ for S_IDX in range(len(my_samples)):
     #minval=np.quantile(current_trace_1min_sav, .01)
     #maxval=np.quantile(current_trace_1min_sav, .99)
     #req_height = .5*minval+.5*maxval
-    req_height=np.quantile(current_trace_1min_sav, PEAKMINHEIGHT)
+    req_height = np.quantile(current_trace_1min_sav, PEAKMINHEIGHT)
     peaks_in_mytrace_pos, _ = signal.find_peaks(current_trace_1min_sav, distance=current_distance, height=req_height)            
     
     # Take the 2nd peak as first peak, as sometimes the data starts within a peak
@@ -630,28 +539,37 @@ for S_IDX in range(len(my_samples)):
     current_second_peak = peaks_in_mytrace_pos[2]
     
     # collect results
-    first_peaks[my_samples[S_IDX]] = current_firstpeak
-    second_peaks[my_samples[S_IDX]] = current_second_peak    
-    list_traces_1min[my_samples[S_IDX]] = current_trace_1min
-    list_minvals[my_samples[S_IDX]]=np.quantile(current_trace_1min_sav, .02)
-    list_maxvals[my_samples[S_IDX]]=np.quantile(current_trace_1min_sav, .98)
-    first_peak_height[my_samples[S_IDX]]=current_trace_1min[current_firstpeak]
+    first_peaks[sample_info_dicts['name'][S_IDX]] = current_firstpeak
+    second_peaks[sample_info_dicts['name'][S_IDX]] = current_second_peak    
+    list_traces_1min[sample_info_dicts['name'][S_IDX]] = current_trace_1min
+    list_minvals[sample_info_dicts['name'][S_IDX]]=np.quantile(current_trace_1min_sav, .02)
+    list_maxvals[sample_info_dicts['name'][S_IDX]]=np.quantile(current_trace_1min_sav, .98)
+    first_peak_height[sample_info_dicts['name'][S_IDX]]=current_trace_1min[current_firstpeak]
     
     # plot
     plt.plot(f, current_trace_1min)
     plt.plot(f,     current_trace_1min_sav, '--r')
     plt.plot(current_firstpeak, current_trace_1min[current_firstpeak],'ko')
     plt.plot(current_second_peak, current_trace_1min[current_second_peak],'ko')    
-    plt.title('ID: '+my_samples[S_IDX]+' ('+str(S_IDX)+')')
+    plt.title('ID: '+sample_info_dicts['name'][S_IDX]+' ('+str(S_IDX)+')')
     #plt.ylim((0.06,0.09))
     
-    plt.savefig(my_out_dir+'analysis/peakfinder_corr_'+my_samples[S_IDX]+'_img.pdf')
+    plt.savefig(my_out_dir+'analysis/peakfinder_corr_'+sample_info_dicts['name'][S_IDX]+'_img.pdf')
     plt.show()
 
+# Some debugging
+if False:
+    
+    plt.hist(current_trace_1min_sav, color='lightgreen', ec='black', bins=15)
+    np.quantile(current_trace_1min_sav, 1)
+    np.quantile(current_trace_1min_sav, .8)      
+    np.quantile(current_trace_1min_sav, .7)    
+    np.quantile(current_trace_1min_sav, PEAKMINHEIGHT)
 
 ###############################################################################
 # Create aligned plots, in two panels
-
+# CURRENTLY NOT USED
+# TO DO: UPDATE THIS PART
 
 XMAX = 3.5
 
@@ -746,9 +664,9 @@ for idx_t in range(len(SEARCHTERMS)):
     
     ax=fig.add_subplot(len(SEARCHTERMS), 1, idx_t+1)
     
-    # selected_samples = [sample for sample in my_samples if current_SEARCHTERM in sample]
-    # selected_samples = [sample for sample in my_samples if re.search(current_SEARCHTERM, sample)]   
-    selected_samples = [my_samples[idx] for idx in range(len(sample_info)) if re.search(current_SEARCHTERM, sample_info['condition'][idx])]    
+    # selected_samples = [sample for sample in sample_info_dicts['name'] if current_SEARCHTERM in sample]
+    # selected_samples = [sample for sample in sample_info_dicts['name'] if re.search(current_SEARCHTERM, sample)]   
+    selected_samples = [sample_info_dicts['name'][idx] for idx in range(len(sample_info)) if re.search(current_SEARCHTERM, sample_info['condition'][idx])]    
     # Also store sample names per value
     selected_samples_list_byterm[current_SEARCHTERM] = selected_samples
         
@@ -759,8 +677,8 @@ for idx_t in range(len(SEARCHTERMS)):
         current_firstpeak         = first_peaks[sample_name]
         current_second_peak       = second_peaks[sample_name]    
         current_first_peak_height = first_peak_height[sample_name]        
-        current_firstpeak_time    = current_firstpeak*sample_dt[sample_name]
-        current_t                 = np.arange(0,NR_FRAMES)*sample_dt[sample_name]
+        current_firstpeak_time    = current_firstpeak*sample_info_dicts['dt'][sample_name]
+        current_t                 = np.arange(0,NR_FRAMES)*sample_info_dicts['dt'][sample_name]
         current_t_adj             = current_t-current_firstpeak_time
         current_trace_norm        = (current_trace-list_minvals[sample_name])/(list_maxvals[sample_name]-list_minvals[sample_name])
         
@@ -772,10 +690,10 @@ for idx_t in range(len(SEARCHTERMS)):
         t_50b = location_closest_value(current_trace_norm[current_second_peak:peak2_regionend_f], 0.5)+current_second_peak    
         peak_duration_50 = t_50b-t_50a  
         # Collect the values
-        peak_durations[sample_name] = peak_duration_50*sample_dt[sample_name]
-        peak_durations_byterm[current_SEARCHTERM] = np.append(peak_durations_byterm[current_SEARCHTERM],peak_duration_50*sample_dt[sample_name])
-        interpeak_times[sample_name] = interpeak_frames*sample_dt[sample_name]
-        interpeak_times_byterm[current_SEARCHTERM] = np.append(interpeak_times_byterm[current_SEARCHTERM],interpeak_frames*sample_dt[sample_name])
+        peak_durations[sample_name] = peak_duration_50*sample_info_dicts['dt'][sample_name]
+        peak_durations_byterm[current_SEARCHTERM] = np.append(peak_durations_byterm[current_SEARCHTERM],peak_duration_50*sample_info_dicts['dt'][sample_name])
+        interpeak_times[sample_name] = interpeak_frames*sample_info_dicts['dt'][sample_name]
+        interpeak_times_byterm[current_SEARCHTERM] = np.append(interpeak_times_byterm[current_SEARCHTERM],interpeak_frames*sample_info_dicts['dt'][sample_name])
         first_peak_height_byterm[current_SEARCHTERM] = np.append(first_peak_height_byterm[current_SEARCHTERM],current_first_peak_height)
         
         

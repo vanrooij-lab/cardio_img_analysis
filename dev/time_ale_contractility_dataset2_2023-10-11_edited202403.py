@@ -9,7 +9,10 @@ CURRENTLY, THIS IS THE LASTEST VERSION OF THIS SCRIPT...
 
 Note on 2024/03/12:
     I reorganized the code such that all important code is now
-    organized in functions.     
+    organized in functions. The file is based on the file
+    time_ale_contractility_dataset2_2023-10-11_edited202403.py
+    but that file is now deleted and renamed into this file. 
+    (will be done next commit)   
 
     This allows for easier recycling of the code for other datasets.
 
@@ -18,6 +21,13 @@ Note on 2024/03/12:
 
     I tested the code, but it's not yet fully tested, so there might be some
     bugs when it's executed!
+
+    I now moved this file into the main directory, as an example of 
+    how to perform your analysis.
+
+    Some discarded part of the script can be found in the file 
+    time_ale_contractility_dataset2_2023-10-11_edited202403_discarded-parts.py
+    and might still be useful later.
     
 
 @author: m.wehrens

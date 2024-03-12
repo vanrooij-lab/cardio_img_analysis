@@ -3,6 +3,23 @@
 """
 Created on Thu Nov 24 17:53:10 2022
 
+THIS SCRIPT IS USED TO ANALYZE THE CONTRACTILITY OF CARDIOMYOCYTES
+CURRENTLY, THIS IS THE LASTEST VERSION OF THIS SCRIPT...
+    -- 2024/03/12
+
+Note on 2024/03/12:
+    I reorganized the code such that all important code is now
+    organized in functions.     
+
+    This allows for easier recycling of the code for other datasets.
+
+    The functions are stored in the files custom_functions_contractility and 
+    custom_functions_movies.
+
+    I tested the code, but it's not yet fully tested, so there might be some
+    bugs when it's executed!
+    
+
 @author: m.wehrens
 """
 

@@ -141,6 +141,8 @@ if not (os.path.isdir(movies_out_dir)):
 
 for current_sample_name in sample_info['sample_name'][sample_info['create_movie']=='yes']:
 
+    # current_sample_name = sample_info['sample_name'][sample_info['create_movie']=='yes'].iloc[0]
+
     print('Creating movie for: '+current_sample_name)    
     
     image_dir=my_work_dir+current_sample_name+'/'

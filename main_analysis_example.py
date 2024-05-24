@@ -77,6 +77,7 @@ import custom_functions_movies as cuslibm
 import numpy as np
 from scipy import signal
 
+
     # importlib.reload(cuslibc)
     # importlib.reload(cuslibm)
 
@@ -99,15 +100,15 @@ from scipy import signal
 
 IMGNAMESUFFIX='_ch00'
 
-my_work_dir = '/Volumes/Wehrens_Mic/RAW_DATA/2023-10-11/TIF_ORGANIZED/'
+my_work_dir = '/Volumes/Wehrens_Mic/RAW_DATA/2023-XX-XX/TIF_ORGANIZED/'
 
 # For plate 2
-my_out_dir   = '/Volumes/Wehrens_Mic/RAW_DATA/2023-10-11_Analysis/Analysis_Plate2/'
-sample_annotation_filepath = my_out_dir+'2023_10_11_Tim_Ale__positions_CM.xlsx'
+# my_out_dir   = '/Volumes/Wehrens_Mic/RAW_DATA/2023-10-11_Analysis/Analysis_Plate2/'
+# sample_annotation_filepath = my_out_dir+'2023_10_11_Tim_Ale__positions_CM.xlsx'
 
 # For plate 1 (note: choose to execute either plate 1 or plate 2 code)
-my_out_dir   = '/Volumes/Wehrens_Mic/RAW_DATA/2023-10-11_Analysis/Analysis_Plate1/'
-sample_annotation_filepath = my_out_dir+'2023_10_11_Tim_Ale__positions_CM_PLATE1.xlsx'
+my_out_dir   = '/Users/m.wehrens/Data/__other_analyses/contractility/Thomas/extra_output_Martijn/'
+sample_annotation_filepath = '/Users/m.wehrens/Data/__other_analyses/contractility/Thomas/files_Thomas/2024_04_26_SuJi_Thomas_baseline_RX_CM_diff4.xlsx'
 
 if not (os.path.isdir(my_out_dir)): 
     os.mkdir(my_out_dir)
@@ -282,7 +283,7 @@ pickle.dump( list_traces_corrcontr, open( my_out_dir+"saved_data_py/"+current_da
 
 # To load, use
 # list_traces_corrcontr = pickle.load( open( my_out_dir+"saved_data_py/"+"2023-10-16"+"_list_traces_corrcontr.p", "rb" ) )
-    
+
 ###############################################################################
 # Now post-process these signals 
 # This both creates plots of the signals, but also 
@@ -354,6 +355,10 @@ peak_durations, peak_durations_byterm, interpeak_times, interpeak_times_byterm, 
     cuslibc.create_plots_extract_final_features(sample_info, sample_info_dicts, \
                             list_traces_1min, first_peaks, second_peaks, first_peak_height, list_minvals, list_maxvals, \
                             SEARCHTERMS, mycolors, XMAX, my_out_dir)
+
+# Now also call an additional function that determines the contractile and relaxation periods
+# First write it here 
+# (WORK IN PROGRESS)
 
 # For now, I manually exported some of this data to Prism
 peak_durations_byterm

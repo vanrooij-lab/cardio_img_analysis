@@ -339,8 +339,6 @@ if False:
 
 XMAX = 3.5
 
-def determine_features_per_searchterm():
-
 SEARCHTERMS = ['before_no-treatment$',     'after_no-treatment$', 
                'before_spiny-FB$',       'after_spiny-FB$', 'before_mus-FB$', 'after_mus-FB$', 
                'before_spiny-FB-medium$', 'after_spiny-FB-medium$', 'before_mus-FB-medium$',      'after_mus-FB-medium$']
@@ -358,7 +356,7 @@ peak_durations, peak_durations_byterm, interpeak_times, interpeak_times_byterm, 
 
 # Now also call an additional function that determines the contractile and relaxation periods
 # First write it here 
-# (WORK IN PROGRESS)
+
 
 # For now, I manually exported some of this data to Prism
 peak_durations_byterm

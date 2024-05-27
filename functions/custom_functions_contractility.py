@@ -21,6 +21,8 @@ import scipy.stats as stats
 
 import scipy.signal as signal
 
+import scipy as sp
+
 import re
 
 ###############################################################################
@@ -47,6 +49,33 @@ def acf(x, length=1500):
 def location_closest_value(x, val):
     dx = np.abs(np.array(x)-np.array(val))
     return( [i for i in range(len(dx)) if dx[i] == np.min(dx)] )
+
+# Find intersections between two functions y1 and y2
+def find_intersections(x, y1, y2):
+
+    # First subtract one from the other
+    ydiff = y1 - y2
+    # Find the places where ydiff changes sign
+    sign_change_idx = np.where(np.diff(np.sign(ydiff)))[0]
+        # sanity check
+        # ydiff[sign_change_idx[0]:sign_change_idx[0]+2]
+
+    # Now we know where to look for the intersection
+    brackets1 = x[sign_change_idx]
+    brackets2 = x[sign_change_idx+1]
+
+    # Create interpolating functions
+    f1 = sp.interpolate.interp1d(x, y1, kind='linear', fill_value="extrapolate")
+    f2 = sp.interpolate.interp1d(x, y2, kind='linear', fill_value="extrapolate")
+
+    # determine the interseects using brentq method
+    x_intersects = [sp.optimize.brentq(lambda x: f1(x)-f2(x), brackets1[i], brackets2[i]) for i in range(len(brackets1))]  
+    # determine y values
+    y_vals1 = [f1(x) for x in x_intersects]
+    y_vals2 = [f2(x) for x in x_intersects]
+
+    # return the intersects
+    return x_intersects, y_vals1, y_vals2
 
 ###############################################################################
 # This loads the sample meta data from the excel file

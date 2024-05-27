@@ -448,12 +448,13 @@ def find_features_and_plot(sample_info_dicts, list_traces_corrcontr, my_out_dir,
 
 def create_plots_extract_final_features(sample_info, sample_info_dicts, \
                          list_traces_1min, first_peaks, second_peaks, first_peak_height, list_minvals, list_maxvals, \
-                         SEARCHTERMS, mycolors, XMAX, my_out_dir):
+                         SEARCHTERMS, mycolors, XMAX, my_out_dir):                         
 
     peak_durations_50 = {}
 
     fig = plt.figure(figsize=(10/2.54,20/2.54), dpi=600) 
 
+    # prepare empty output variables
     peak_durations={}
     peak_durations_byterm={T:np.empty(0) for T in SEARCHTERMS} 
     interpeak_times={}
@@ -498,14 +499,13 @@ def create_plots_extract_final_features(sample_info, sample_info_dicts, \
             interpeak_times[sample_name] = interpeak_frames*sample_info_dicts['dt'][sample_name]
             interpeak_times_byterm[current_SEARCHTERM] = np.append(interpeak_times_byterm[current_SEARCHTERM],interpeak_frames*sample_info_dicts['dt'][sample_name])
             first_peak_height_byterm[current_SEARCHTERM] = np.append(first_peak_height_byterm[current_SEARCHTERM],current_first_peak_height)
-            
-            
+
             plt.plot(current_t_adj, current_trace_norm, mycolors[idx_t]+'-')
             plt.plot(0, current_trace_norm[current_firstpeak],'ko')
             plt.plot(current_t_adj[t_50a], 0.5, 'ko')
             plt.plot(current_t_adj[t_50b], 0.5, 'ko')    
             #plt.plot(current_t_adj, current_trace,'b-')
-            
+
         plt.ylim((-.2,1.2))  
         plt.xlim((-.5,XMAX))  # plt.xlim((-.5,1.5))  
         plt.title(current_SEARCHTERM)
@@ -522,14 +522,166 @@ def create_plots_extract_final_features(sample_info, sample_info_dicts, \
     plt.ylabel('1-corr (normalized)')
     plt.tight_layout()
 
-    plt.savefig(my_out_dir+'final_overview_traces.pdf', )
+    plt.savefig(my_out_dir+'final_overview_traces.pdf')
     #plt.show()
 
-    plt.close('all') 
+    plt.close('all')     
 
     # Return the values
     return peak_durations, peak_durations_byterm, interpeak_times, interpeak_times_byterm, \
                 first_peak_height_byterm, selected_samples_list_byterm
+
+
+
+###############################################################################
+
+def determine_contractile_times(sample_info, sample_info_dicts, \
+                         list_traces_1min, first_peaks, second_peaks, first_peak_height, list_minvals, list_maxvals, \
+                         interpeak_times, \
+                         SEARCHTERMS, mycolors, XMAX, my_out_dir,
+                         PEAK_BASE_FRACTION=0.05): # PEAK_BASE_FRACTION determines the fraction of the peak height that is used to determine the contraction and relaxation times
+
+    durations_contraction = {}
+    durations_relaxation  = {}
+    durations_contraction_fraction = {}
+    durations_relaxation_fraction  = {}
+
+    durations_contraction_byterm = {T:np.empty(0) for T in SEARCHTERMS}
+    durations_relaxation_byterm  = {T:np.empty(0) for T in SEARCHTERMS}
+    durations_contraction_fraction_byterm = {T:np.empty(0) for T in SEARCHTERMS}
+    durations_relaxation_fraction_byterm  = {T:np.empty(0) for T in SEARCHTERMS}
+
+    fig2, (f2_ax1, f2_ax2) = plt.subplots(2, 1, figsize=(8, 8))
+
+    for idx_t in range(len(SEARCHTERMS)):
+        
+        current_SEARCHTERM = SEARCHTERMS[idx_t]
+        
+        # selected_samples = [sample for sample in sample_info_dicts['name'] if current_SEARCHTERM in sample]
+        # selected_samples = [sample for sample in sample_info_dicts['name'] if re.search(current_SEARCHTERM, sample)]   
+        selected_samples = [sample_info_dicts['name'][idx] for idx in range(len(sample_info)) if re.search(current_SEARCHTERM, sample_info['condition'][idx])]    
+        # Also store sample names per value
+        # selected_samples_list_byterm[current_SEARCHTERM] = selected_samples
+            
+        for sample_name in selected_samples:
+            # sample_name=selected_samples[0]
+
+            print('Working on sample: '+sample_name+' for search term: '+current_SEARCHTERM)
+            
+            current_trace             = list_traces_1min[sample_name]     
+            # current_trace_1min        = current_trace # synonym here
+            NR_FRAMES                 = len(current_trace)       
+            current_firstpeak         = first_peaks[sample_name]
+            current_second_peak       = second_peaks[sample_name]    
+            current_first_peak_height = first_peak_height[sample_name]        
+            current_firstpeak_time    = current_firstpeak*sample_info_dicts['dt'][sample_name]
+            current_t                 = np.arange(0,NR_FRAMES)*sample_info_dicts['dt'][sample_name]
+            current_t_adj             = current_t-current_firstpeak_time
+            current_trace_norm        = (current_trace-list_minvals[sample_name])/(list_maxvals[sample_name]-list_minvals[sample_name])   
+            current_dt                = sample_info_dicts['dt'][sample_name]         
+            #
+            interpeak_frames = current_second_peak - current_firstpeak
+            peak2_regionstart_f  = current_second_peak - round(interpeak_frames/2)
+            peak2_regionend_f    = current_second_peak + round(interpeak_frames/2)
+            # also load reference frame, which should be ignored..
+            current_ref_frame = sample_info_dicts['refimg'][sample_name]
+            
+            # Now also find the contraction and relaxation times
+            
+            # First, create an additinonal corrected trace with baseline correction
+                    
+            # determine the baseline window
+            WINDOW_WIDTH= int( interpeak_times[sample_name]*2/current_dt ) // 2 * 2 + 1
+            # rough baseline outline based on moving window
+            current_trace[current_ref_frame] = np.nan # reference frame introduces artifacts --> remove it..
+            baseline = [np.nanmin(current_trace[i:i+WINDOW_WIDTH]) for i in range(len(current_trace)-WINDOW_WIDTH+1)]
+            # pad the baseline to the original length
+            padding_width = (WINDOW_WIDTH) // 2
+            padded_baseline = np.pad(baseline, (padding_width, padding_width), mode='constant', constant_values=[baseline[1], baseline[-1]])
+            # rough correction
+            current_trace_1min_baselinecorr = current_trace - padded_baseline
+            # Smooth the padded baseline using a 2nd order polynomial local approximation
+            smoothed_baseline = np.polyval(np.polyfit(current_t, padded_baseline, 4), current_t)
+            # Create the final corrected trace
+            current_trace_1min_baselinecorr_smoothed = current_trace - smoothed_baseline
+
+            # Now find the contraction and relaxation times
+            # determine a line that defines the "base" (e.g. 5% of the peak height)            
+            #peak_line_height_rough = first_peak_height[sample_name]*PEAK_BASE_FRACTION
+            #peak_line_rough = np.array([peak_line_height_rough for i in range(len(current_trace_1min))])
+            # now using corrected peak height
+            first_peak_height_corrected=current_trace_1min_baselinecorr_smoothed[first_peaks[sample_name]]
+            peak_line_height = first_peak_height_corrected*PEAK_BASE_FRACTION
+            peak_line = np.array([peak_line_height for i in range(len(current_trace))])
+            
+            # now determine the intersections
+            # first determine indices for the region around the peak (to the left [contractile time] and to the right [relaxation time])
+            idx_l = range(peak2_regionstart_f,current_second_peak)
+            idx_r = range(current_second_peak,peak2_regionend_f)
+            # then look for intersections in those regions
+            xl_, y1l_, y2l_ = find_intersections(current_t[idx_l], current_trace_1min_baselinecorr_smoothed[idx_l], peak_line[idx_l]) # For points left of peak, closest one
+            xr_, y1r_, y2r_ = find_intersections(current_t[idx_r], current_trace_1min_baselinecorr_smoothed[idx_r], peak_line[idx_r]) # For points right of peak, closest one
+            # and use the intersections closest to the peak
+            xl=xl_[-1]; yl1=y1l_[-1]; yl2=y2l_[-1]
+            xr=xr_[0]; yr1=y1r_[0]; yr2=y2r_[0]
+
+            # Now give the times of interest
+            duration_contraction = current_t[current_second_peak] - xl
+            duration_relaxation  = xr - current_t[current_second_peak]
+            duration_contraction_fraction = duration_contraction / (duration_contraction+duration_relaxation)
+            duration_relaxation_fraction  = duration_relaxation / (duration_contraction+duration_relaxation)
+
+            # Now store the values in output params
+            durations_contraction[sample_name] = duration_contraction
+            durations_relaxation[sample_name]  = duration_relaxation
+            durations_contraction_fraction[sample_name] = duration_contraction_fraction
+            durations_relaxation_fraction[sample_name]  = duration_relaxation_fraction
+
+            durations_contraction_byterm[current_SEARCHTERM] = np.append(durations_contraction_byterm[current_SEARCHTERM], duration_contraction)
+            durations_relaxation_byterm[current_SEARCHTERM]  = np.append(durations_relaxation_byterm[current_SEARCHTERM], duration_relaxation)
+            durations_contraction_fraction_byterm[current_SEARCHTERM] = np.append(durations_contraction_fraction_byterm[current_SEARCHTERM], duration_contraction_fraction)
+            durations_relaxation_fraction_byterm[current_SEARCHTERM]  = np.append(durations_relaxation_fraction_byterm[current_SEARCHTERM], duration_relaxation_fraction)
+
+            # Now also export an overview plot
+            fig2, (f2_ax1, f2_ax2) = plt.subplots(2, 1, figsize=(8, 8))
+            #
+            f2_ax1.plot(current_t, current_trace)
+            f2_ax1.plot(current_t, smoothed_baseline, color='green')
+            f2_ax1.axvline(x=current_t[peak2_regionstart_f], linestyle='dotted', color='red')
+            f2_ax1.axvline(x=current_t[peak2_regionend_f], linestyle='dotted', color='red')
+            f2_ax1.axvline(x=current_t[peak2_regionend_f], linestyle='dotted', color='red')
+            f2_ax1.axvline(x=xl, linestyle='dotted', color='grey')
+            f2_ax1.axvline(x=xr, linestyle='dotted', color='grey')
+            f2_ax1.axvline(x=current_t[current_second_peak], linestyle='dotted', color='grey')
+            #ax1.scatter(xl, yl1, color='blue')
+            #ax1.scatter(xr, yr2, color='blue')
+            #ax1.scatter(current_t[current_second_peak], current_trace_1min[current_second_peak], color='blue')
+            f2_ax1.set_xlabel('Time')
+            f2_ax1.set_ylabel('Correlation')
+            f2_ax1.set_title('Correlation vs Time (Polynomial Baseline)')
+            #
+            f2_ax2.plot(current_t, current_trace_1min_baselinecorr_smoothed)
+            f2_ax2.plot(current_t, peak_line)
+            f2_ax2.axvline(x=current_t[peak2_regionstart_f], linestyle='dotted', color='red')
+            f2_ax2.axvline(x=current_t[peak2_regionend_f], linestyle='dotted', color='red')
+            f2_ax2.axvline(x=current_t[peak2_regionend_f], linestyle='dotted', color='red')
+            f2_ax2.axvline(x=xl, linestyle='dotted', color='grey')
+            f2_ax2.axvline(x=xr, linestyle='dotted', color='grey')
+            f2_ax2.axvline(x=current_t[current_second_peak], linestyle='dotted', color='grey')
+            f2_ax2.scatter(xl, yl1, color='blue')
+            f2_ax2.scatter(xr, yr2, color='blue')
+            f2_ax2.scatter(current_t[current_second_peak], current_trace_1min_baselinecorr_smoothed[current_second_peak], color='blue')
+            f2_ax2.set_xlabel('Time')
+            f2_ax2.set_ylabel('Correlation')
+            f2_ax2.set_title('Correlation vs Time (Polynomial Baseline)')
+
+            fig2.tight_layout()
+            fig2.savefig(my_out_dir+'analysis/contractrelax_trace_'+sample_name+'.pdf', )
+
+            plt.close('all')
+
+    return durations_contraction, durations_relaxation, durations_contraction_fraction, durations_relaxation_fraction, \
+                durations_contraction_byterm, durations_relaxation_byterm, durations_contraction_fraction_byterm, durations_relaxation_fraction_byterm
 
 ###############################################################################
 

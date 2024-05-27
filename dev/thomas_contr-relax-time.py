@@ -1,4 +1,6 @@
 
+##############################################
+# Load data to test code on
 
 NR_FRAMES=1500
 
@@ -7,7 +9,7 @@ list_traces_corrcontr = pickle.load( open( "/Users/m.wehrens/Data/__other_analys
 
 
 ##############################################
-
+# Run some parts of the analysis necessary for testing (1)
 
 
 if not os.path.exists(my_out_dir+"analysis/"):
@@ -21,6 +23,7 @@ SMOOTHINGTIME = .2 # width of smoothing window, in seconds
 PEAKMINHEIGHT = .8 # minimum height of peak, expressed as quantile
 
 # Call the function which plots traces and analyzes important features    
+# import custom_functions_contractility as cuslibc
 first_peaks, second_peaks, first_peak_height, list_traces_1min, list_minvals, list_maxvals = \
         cuslibc.find_features_and_plot(sample_info_dicts, list_traces_corrcontr, my_out_dir, 
                             PEAKMINTIME=PEAKMINTIME, SMOOTHINGTIME=SMOOTHINGTIME, PEAKMINHEIGHT=PEAKMINHEIGHT) 
@@ -28,7 +31,7 @@ first_peaks, second_peaks, first_peak_height, list_traces_1min, list_minvals, li
 
 
 ##############################################
-
+# Run some parts of the analysis necessary for testing (2)
 
 XMAX = 3.5
 
@@ -36,6 +39,9 @@ XMAX = 3.5
 SEARCHTERMS = ['diff4']
 mycolors    = ['b']
 
+# if necessary
+import importlib
+importlib.reload(cuslibc)
 
 # Now run the function which determines (extra) features of interest and groups them by search terms.
 peak_durations, peak_durations_byterm, interpeak_times, interpeak_times_byterm, \
@@ -47,10 +53,13 @@ peak_durations, peak_durations_byterm, interpeak_times, interpeak_times_byterm, 
 
 
 ##############################################
+# Now test on a single example
 
-
-sample_nr = 6 # this is a problematic example
 sample_nr = 1 # this one is nice
+#sample_nr = 6 # this is a problematic example
+
+# which sample is which?
+# np.where(sample_info['sample_name']=='contractility_measurements_DIFF4_MYBPC3_20240419_Cor-50%-2')
 
 sample_name= sample_info['sample_name'][sample_nr] # 'contractility_measurements_DIFF4_MYBPC3_20240419_Cor-50%-1'
 current_dt= sample_info['dt'][sample_nr]
@@ -66,8 +75,9 @@ plt.ylabel('Correlation')
 plt.title('Correlation vs Time')
 plt.show()
 
+############################################################################################
+############################################################################################
 
-##############################################
 # now find the baseline
 
 # determine the baseline window
@@ -106,12 +116,16 @@ plt.show()
 
 PEAK_BASE_FRACTION = .05
 
-peak_line_height = first_peak_height[sample_name]*PEAK_BASE_FRACTION
+peak_line_height_rough = first_peak_height[sample_name]*PEAK_BASE_FRACTION
+peak_line_rough = np.array([peak_line_height_rough for i in range(len(current_trace_1min))])
+# now using corrected peak height
+first_peak_height_corrected=current_trace_1min_baselinecorr_smoothed[first_peaks[sample_name]]
+peak_line_height = first_peak_height_corrected*PEAK_BASE_FRACTION
 peak_line = np.array([peak_line_height for i in range(len(current_trace_1min))])
 
 # Plot original, adding the baseline (polynomial)
 plt.plot(current_t, current_trace_1min)
-plt.plot(current_t, peak_line)
+plt.plot(current_t, peak_line_rough)
 plt.xlabel('Time')
 plt.ylabel('Correlation')
 plt.title('Correlation vs Time (Polynomial Baseline)')
@@ -129,18 +143,9 @@ plt.show()
 ##############################################
 # Now find the matching intersection points
 
-# Find the intersection points
-
-# !!!!
-# See line 464 of custom_functions_contractitility
-# There, I use the normalized cross-correlation to find the intersection points at 0.5 (given that the peak is at 1
-# I think it's wisest to merge this into the create_plots_extract_final_features function, as the loop is already there
-
-
-# !!!!
-# CODE BELOW WAS COPIED FROM THE FUNCTION create_plots_extract_final_features, SO I SHOULD EDIT THIS 
-# TO LOOK FOR THE 5% VALUE IN THE CORRECTED TRACE FROM ABOVE, AND ALSO ADD THAT CORRECTION TO THAT FUNCTION
-# This is a bit redundant
+# Code below now works; needs to be integrated into the function create_plots_extract_final_features
+# Just go over it, only adding parameters that weren't calculated yet already
+# (ALREADY PRESENT IN THE FUNCTION WHERE THIS'LL BE IMPLEMENTED, BUT ALSO NECESSARY HERE)
 current_trace             = list_traces_1min[sample_name]        
 NR_FRAMES                 = len(current_trace)       
 current_firstpeak         = first_peaks[sample_name]
@@ -152,13 +157,10 @@ current_secondpeak_time    = current_second_peak*sample_info_dicts['dt'][sample_
 #current_trace_norm        = (current_trace-list_minvals[sample_name])/(list_maxvals[sample_name]-list_minvals[sample_name])
 
 # Find the peak_duration_50
+# (ALREADY PRESENT IN THE FUNCTION WHERE THIS'LL BE IMPLEMENTED, BUT ALSO NECESSARY HERE)
 interpeak_frames = current_second_peak - current_firstpeak
 peak2_regionstart_f  = current_second_peak - round(interpeak_frames/2*1.5)
 peak2_regionend_f    = current_second_peak + round(interpeak_frames/2*1.5)
-
-t_50a = location_closest_value(current_trace_norm[peak2_regionstart_f:current_second_peak], PEAK_BASE_FRACTION)+peak2_regionstart_f
-t_50b = location_closest_value(current_trace_norm[current_second_peak:peak2_regionend_f], PEAK_BASE_FRACTION)+current_second_peak    
-peak_duration_50 = t_50b-t_50a  
 
 # Determine intersects
 # xint, yint1, yint2 = find_intersections(current_t, current_trace_1min_baselinecorr_smoothed, peak_line) # For all
@@ -190,3 +192,64 @@ duration_contraction = current_t[current_second_peak] - xl
 duration_relaxation  = xr - current_t[current_second_peak]
 duration_contraction_fraction = duration_contraction / (duration_contraction+duration_relaxation)
 duration_relaxation_fraction  = duration_relaxation / (duration_contraction+duration_relaxation)
+
+
+##############################################
+
+
+fig2, (f2_ax1, f2_ax2) = plt.subplots(2, 1, figsize=(8, 8))
+
+
+f2_ax1.plot(current_t, current_trace_1min)
+f2_ax1.plot(current_t, smoothed_baseline, color='green')
+f2_ax1.axvline(x=current_t[peak2_regionstart_f], linestyle='dotted', color='red')
+f2_ax1.axvline(x=current_t[peak2_regionend_f], linestyle='dotted', color='red')
+f2_ax1.axvline(x=current_t[peak2_regionend_f], linestyle='dotted', color='red')
+f2_ax1.axvline(x=xl, linestyle='dotted', color='grey')
+f2_ax1.axvline(x=xr, linestyle='dotted', color='grey')
+f2_ax1.axvline(x=current_t[current_second_peak], linestyle='dotted', color='grey')
+#ax1.scatter(xl, yl1, color='blue')
+#ax1.scatter(xr, yr2, color='blue')
+#ax1.scatter(current_t[current_second_peak], current_trace_1min[current_second_peak], color='blue')
+f2_ax1.set_xlabel('Time')
+f2_ax1.set_ylabel('Correlation')
+f2_ax1.set_title('Correlation vs Time (Polynomial Baseline)')
+
+f2_ax2.plot(current_t, current_trace_1min_baselinecorr_smoothed)
+f2_ax2.plot(current_t, peak_line)
+f2_ax2.axvline(x=current_t[peak2_regionstart_f], linestyle='dotted', color='red')
+f2_ax2.axvline(x=current_t[peak2_regionend_f], linestyle='dotted', color='red')
+f2_ax2.axvline(x=current_t[peak2_regionend_f], linestyle='dotted', color='red')
+f2_ax2.axvline(x=xl, linestyle='dotted', color='grey')
+f2_ax2.axvline(x=xr, linestyle='dotted', color='grey')
+f2_ax2.axvline(x=current_t[current_second_peak], linestyle='dotted', color='grey')
+f2_ax2.scatter(xl, yl1, color='blue')
+f2_ax2.scatter(xr, yr2, color='blue')
+f2_ax2.scatter(current_t[current_second_peak], current_trace_1min_baselinecorr_smoothed[current_second_peak], color='blue')
+f2_ax2.set_xlabel('Time')
+f2_ax2.set_ylabel('Correlation')
+f2_ax2.set_title('Correlation vs Time (Polynomial Baseline)')
+
+fig2.tight_layout()
+
+plt.show()
+fig2.savefig(my_out_dir+'contractrelax_trace_'+sample_name+'.pdf')
+
+
+
+
+############################################################################################
+############################################################################################
+# FINAL TEST
+
+import importlib
+importlib.reload(cuslibc)
+
+durations_contraction, durations_relaxation, durations_contraction_fraction, durations_relaxation_fraction, \
+                durations_contraction_byterm, durations_relaxation_byterm, durations_contraction_fraction_byterm, durations_relaxation_fraction_byterm = \
+    cuslibc.determine_contractile_times(sample_info, sample_info_dicts, \
+                         list_traces_1min, first_peaks, second_peaks, first_peak_height, list_minvals, list_maxvals, \
+                         interpeak_times, \
+                         SEARCHTERMS, mycolors, XMAX, my_out_dir,
+                         PEAK_BASE_FRACTION=0.05)
+

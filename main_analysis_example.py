@@ -74,6 +74,7 @@ sys.path.append("/Users/m.wehrens/Documents/git_repos/cardio_img_analysis/functi
 
 import custom_functions_contractility as cuslibc
 import custom_functions_movies as cuslibm
+
 import numpy as np
 from scipy import signal
 
@@ -348,14 +349,32 @@ mycolors    = ['b','r',
 
 
 # Now run the function which determines (extra) features of interest and groups them by search terms.
+#peak_durations, peak_durations_byterm, interpeak_times, interpeak_times_byterm, \
+#                first_peak_height_byterm, selected_samples_list_byterm = \
+#    cuslibc.create_plots_extract_final_features(sample_info, sample_info_dicts, \
+#                            list_traces_1min, first_peaks, second_peaks, first_peak_height, list_minvals, list_maxvals, \
+#                            SEARCHTERMS, mycolors, XMAX, my_out_dir)
+
+# Now run the function which determines (extra) features of interest and groups them by search terms.
+# UPDATED WITH CONTRACTION AND RELAXATION DURATIONS
 peak_durations, peak_durations_byterm, interpeak_times, interpeak_times_byterm, \
-                first_peak_height_byterm, selected_samples_list_byterm = \
+                first_peak_height_byterm, selected_samples_list_byterm, \
+                durations_contraction, durations_relaxation, durations_contraction_fraction, durations_relaxation_fraction, \
+                durations_contraction_byterm, durations_relaxation_byterm, durations_contraction_fraction_byterm, durations_relaxation_fraction_byterm = \
     cuslibc.create_plots_extract_final_features(sample_info, sample_info_dicts, \
                             list_traces_1min, first_peaks, second_peaks, first_peak_height, list_minvals, list_maxvals, \
                             SEARCHTERMS, mycolors, XMAX, my_out_dir)
 
+
+
 # Now also call an additional function that determines the contractile and relaxation periods
-# First write it here 
+durations_contraction, durations_relaxation, durations_contraction_fraction, durations_relaxation_fraction, \
+                durations_contraction_byterm, durations_relaxation_byterm, durations_contraction_fraction_byterm, durations_relaxation_fraction_byterm = \
+    cuslibc.determine_contractile_times(sample_info, sample_info_dicts, \
+                         list_traces_1min, first_peaks, second_peaks, first_peak_height, list_minvals, list_maxvals, \
+                         interpeak_times, \
+                         SEARCHTERMS, mycolors, XMAX, my_out_dir,
+                         PEAK_BASE_FRACTION=0.05)
 
 
 # For now, I manually exported some of this data to Prism
@@ -363,6 +382,11 @@ peak_durations_byterm
 interpeak_times_byterm
 first_peak_height_byterm
 selected_samples_list_byterm
+# and contractily period times
+durations_contraction_byterm
+durations_relaxation_byterm
+durations_contraction_fraction_byterm
+durations_relaxation_fraction_byterm
 
 # Export to excel
 df_to_export = \
@@ -371,6 +395,10 @@ df_to_export = \
                     'peak_duration':peak_durations_byterm[SEARCHTERMS[idx]],
                     'interpeak':interpeak_times_byterm[SEARCHTERMS[idx]],
                     'peak_height':first_peak_height_byterm[SEARCHTERMS[idx]],
+                    'duration_contraction':durations_contraction_byterm[SEARCHTERMS[idx]],
+                    'durations_relaxation':durations_relaxation_byterm[SEARCHTERMS[idx]],
+                    'durations_contraction_fraction':durations_contraction_fraction_byterm[SEARCHTERMS[idx]],
+                    'durations_relaxation_fraction':durations_relaxation_fraction_byterm[SEARCHTERMS[idx]],
                     'condition_summarized':SEARCHTERMS[idx]},
                 index=selected_samples_list_byterm[SEARCHTERMS[idx]]) for idx in range(len(SEARCHTERMS))]
         )
